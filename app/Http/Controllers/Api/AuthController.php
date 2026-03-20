@@ -35,5 +35,27 @@ class AuthController extends Controller
         ], 200);
     }
 
-  
+    // LOGIN
+    public function login(Request $request)
+    {
+        $request->validate([
+            'username' => 'required|string',
+            'password' => 'required'
+        ]);
+
+        $user = User::where('username', $request->username)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Invalid Credentials'
+            ], 401);
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Login Success',
+            'user' => $user
+        ]);
+    }
 }
