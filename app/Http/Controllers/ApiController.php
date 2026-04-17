@@ -3,71 +3,65 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\Food;
 use App\Models\Order;
+use App\Models\OrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class ApiController extends Controller
 {
+    public function login(Request $request)
+    {
+        $user = User::where('username', $request->username)->first();
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+        return response()->json(['user' => $user], 200);
+    }
+
+    // Fixed Registration
     public function register(Request $request)
     {
         $user = User::create([
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
+            'email' => $request->email,
             'contact' => $request->contact,
             'username' => $request->username,
-            'password' => bcrypt($request->password),
+            'password' => Hash::make($request->password),
         ]);
-
-        return response()->json([
-            'message' => 'Registered successfully' . $user
-        ]);
+        return response()->json(['user' => $user], 201);
     }
-    public function login(Request $request)
+
+    // Fixed Profile Update
+    public function updateProfile(Request $request)
     {
-        $user = User::where('username', $request->username)->first();
+        $user = User::find($request->id);
+        if (!$user) return response()->json(['message' => 'Not Found'], 404);
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
-        }
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Login successful',
-            'token' => $token,
-            'user' => $user
-        ]);
-    }
-    public function profile(Request $request)
-    {
-        return response()->json([
-            'user' => $request->user()
-        ]);
-    }
-    public function addFood(Request $request)
-    {
-        $food = Food::create([
-            'name' => $request->name,
-            'price' => $request->price,
-        ]);
-
-        return response()->json($food);
+        $user->update($request->only(['first_name', 'last_name', 'email', 'contact']));
+        return response()->json(['user' => $user], 200);
     }
     public function getFoods()
-    {
-        return response()->json(Food::all());
-    }
+{
+    // This fetches everything from your 'foods' table
+    return response()->json(\App\Models\Food::all(), 200);
+}
     public function order(Request $request)
     {
         $order = Order::create([
-            'user_id' => $request->user()->id,
-            'items' => json_encode($request->items),
+            'user_id' => $request->user_id,
+            'total' => $request->total ?? 0,
         ]);
 
-        return response()->json([
-            'message' => 'Order saved'
-        ]);
+        foreach ($request->items as $item) {
+            OrderItem::create([
+                'order_id' => $order->id,
+                'food_id' => $item['food_id'] ?? 1,
+                'quantity' => $item['qty'] ?? 1,
+                'price' => $item['price'] ?? 0,
+            ]);
+        }
+        return response()->json(['message' => 'Order saved successfully'], 201);
     }
 }
